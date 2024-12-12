@@ -13,16 +13,28 @@ RUN apt-get update \
     && docker-php-ext-install gd \
     && a2enmod rewrite ssl socache_shmcb \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Définir le répertoire de travail
 WORKDIR /var/www
 
-# Installation de Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN chown -R www-data:www-data /var/www
+COPY . .
 
-# Installation du client Symfony
-RUN curl -sS https://get.symfony.com/cli/installer | bash \
-    && mv /root/.symfony5/bin/symfony /usr/local/bin/symfony
+# Installation de Composer
+RUN curl -sS https://getcomposer.org/download/2.8.3/composer.phar -o /usr/local/bin/composer && \
+    chmod +x /usr/local/bin/composer
+
+
+RUN rm -rf vendor composer.lock
+RUN composer clear-cache
+RUN composer install --no-scripts --optimize-autoloader
+RUN composer require symfony/runtime --no-scripts
+
+RUN composer dump-autoload
+RUN mkdir -p var/cache/prod \
+    && mkdir -p var/log
+RUN chmod 777 ./var/cache/prod
+RUN chmod 777 ./var/log
 
 #exposer le port 80 pour heroku
 EXPOSE 80
+EXPOSE 443
